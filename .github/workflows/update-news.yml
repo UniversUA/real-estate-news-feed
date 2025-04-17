@@ -6,6 +6,10 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
+# Grant write permissions to the GITHUB_TOKEN for this job
+permissions:
+  contents: write
+
 jobs:
   update-news:
     runs-on: ubuntu-latest
