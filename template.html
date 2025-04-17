@@ -33,10 +33,27 @@
     <div class="wrap">
       <div class="home">
         <div class="form-group pull-right">
-          <input type="text" class="search form-control" placeholder="What you looking for?">
+            <input class="search form-control" type="text" placeholder="What you looking for?" />
         </div>
         <span class="counter pull-right"></span>
+<style>
+    h2 {
+        margin-top: 2px;
+    }
+    .news-item {
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+    }
 
+    .news-item.hidden {
+    opacity: 0;
+    pointer-events: none;
+    height: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    }
+</style>
 <!-- NEWS_CONTENT_PLACEHOLDER -->
 
 <br>
@@ -85,10 +102,10 @@
       newsItems.forEach(item => {
         const title = item.querySelector("a").textContent.toLowerCase();
         if (title.includes(query)) {
-          item.style.display = "";
+          item.classList.remove("hidden");
           count++;
         } else {
-          item.style.display = "none";
+          item.classList.add("hidden");
         }
       });
     
@@ -98,14 +115,20 @@
       }
     }
     
-    // Підключити подію keyup на поле пошуку
     const searchInput = document.querySelector(".search");
     if (searchInput) {
       searchInput.addEventListener("keyup", filterNews);
-    }
     
-    // Викликати при завантаженні
-    filterNews();
-    </script>      
+      // Блокуємо Enter
+      searchInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          filterNews();
+        }
+      });
+    
+      filterNews(); // ініціалізація
+    }
+    </script>    
 </body>
 </html>
