@@ -15,8 +15,10 @@ HEADERS = {
 # Using the /search endpoint which might be slightly more stable than the main news page structure
 BASE_URL = "https://news.google.com/"
 SEARCH_URL = f"{BASE_URL}search?q={SEARCH_QUERY.replace(' ', '+')}&hl=en-US&gl=US&ceid=US%3Aen"
-OUTPUT_FILE = "index.html"
+TEMPLATE_FILE = "template.html" # Input template file
+OUTPUT_FILE = "index.html"      # Final output file
 TIMEZONE = "America/New_York" # Timezone for relative dates like "2 hours ago"
+NEWS_PLACEHOLDER = "<!-- NEWS_CONTENT_PLACEHOLDER -->" # Placeholder in template
 
 # --- HTML Selectors (HIGHLY LIKELY TO BREAK) ---
 # These selectors target the article elements on the Google News search results page.
@@ -32,25 +34,26 @@ def parse_relative_date(date_str):
     """Attempts to parse relative dates like '2 hours ago', 'Yesterday'."""
     now = datetime.datetime.now(pytz.timezone(TIMEZONE))
     date_str = date_str.lower()
-
-    if "yesterday" in date_str:
-        return now - datetime.timedelta(days=1)
-    if "hour" in date_str:
-        hours = int(re.search(r'(\d+)\s+hour', date_str).group(1))
-        return now - datetime.timedelta(hours=hours)
-    if "minute" in date_str:
-        minutes = int(re.search(r'(\d+)\s+minute', date_str).group(1))
-        return now - datetime.timedelta(minutes=minutes)
-    if "day" in date_str:
-        days = int(re.search(r'(\d+)\s+day', date_str).group(1))
-        return now - datetime.timedelta(days=days)
-
+    try:
+        if "yesterday" in date_str:
+            return now - datetime.timedelta(days=1)
+        if "hour" in date_str:
+            hours = int(re.search(r'(\d+)\s+hour', date_str).group(1))
+            return now - datetime.timedelta(hours=hours)
+        if "minute" in date_str:
+            minutes = int(re.search(r'(\d+)\s+minute', date_str).group(1))
+            return now - datetime.timedelta(minutes=minutes)
+        if "day" in date_str:
+            days = int(re.search(r'(\d+)\s+day', date_str).group(1))
+            return now - datetime.timedelta(days=days)
+    except (AttributeError, ValueError): # Handle cases where regex doesn't match or int conversion fails
+        print(f"Warning: Could not parse relative date string: {date_str}")
     # Fallback or handle other formats if needed
     return now # Default to now if parsing fails
 
 def get_absolute_url(href):
     """Converts relative URLs to absolute URLs based on Google News."""
-    if href.startswith('./'):
+    if href and href.startswith('./'):
         href = href[2:] # Remove './'
     return urljoin(BASE_URL, href)
 
@@ -101,11 +104,14 @@ def parse_news(html_content):
                     parsed_date = parse_relative_date(date_str)
         elif date_str:
             parsed_date = parse_relative_date(date_str)
-        else:
-            parsed_date = datetime.datetime.now(pytz.utc) # Fallback if no date found
+
+        # Fallback if no date could be parsed at all
+        if parsed_date is None:
+             parsed_date = datetime.datetime.now(pytz.utc) # Use UTC for consistency if defaulting
 
         # Basic filtering: Ensure we have a title and a non-placeholder link
-        if title != "N/A" and link != "#" and not link.startswith(BASE_URL): # Avoid internal Google links
+        # Also check if the source is not Google itself (sometimes happens)
+        if title != "N/A" and link != "#" and not link.startswith(BASE_URL) and source != "Google News":
              news_items.append({
                 'title': title,
                 'link': link,
@@ -117,81 +123,105 @@ def parse_news(html_content):
     # Sort by date, newest first
     news_items.sort(key=lambda item: item['date'], reverse=True)
 
-    print(f"Successfully parsed {len(news_items)} articles.")
+    print(f"Successfully parsed {len(news_items)} valid articles.")
     return news_items
 
-def generate_html(news_items):
-    """Generates the index.html file content."""
-    html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>US Top Recent Real Estate News</title>
-    <style>
-        body {{ font-family: sans-serif; line-height: 1.6; margin: 20px; background-color: #f4f4f4; color: #333; }}
-        .container {{ max-width: 800px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }}
-        h1 {{ color: #333; text-align: center; }}
-        ul {{ list-style-type: none; padding: 0; }}
-        li {{ background: #eee; margin-bottom: 10px; padding: 15px; border-radius: 5px; }}
-        li a {{ text-decoration: none; color: #007bff; font-weight: bold; }}
-        li a:hover {{ text-decoration: underline; }}
-        .source, .date {{ font-size: 0.9em; color: #555; margin-top: 5px; }}
-        .footer {{ text-align: center; margin-top: 20px; font-size: 0.8em; color: #777; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>US Top Recent Real Estate News</h1>
-        <p class="footer">Last updated: {datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime('%Y-%m-%d %H:%M:%S %Z')}</p>
-        <ul>
-"""
+def generate_news_list_html(news_items):
+    """Generates the HTML list (ul) for the news items."""
     if not news_items:
-        html_content += "<li>No news found or error fetching data.</li>"
-    else:
-        for item in news_items:
-            # Format date nicely if possible, otherwise use the string we found
-            try:
-                display_date = item['date'].astimezone(pytz.timezone(TIMEZONE)).strftime('%Y-%m-%d %H:%M')
-            except Exception:
-                display_date = item['date_str'] # Fallback to original string
+        return "<ul><li>No news found or error fetching data. Check Action logs for details.</li></ul>"
 
-            html_content += f"""
-            <li>
-                <a href="{item['link']}" target="_blank" rel="noopener noreferrer">{item['title']}</a>
-                <div class="source">Source: {item['source']}</div>
-                <div class="date">Published: {display_date}</div>
-            </li>
+    list_items_html = ""
+    for item in news_items:
+        # Format date nicely if possible, otherwise use the string we found
+        try:
+            # Using a simpler format suitable for a list
+            display_date = item['date'].astimezone(pytz.timezone(TIMEZONE)).strftime('%b %d, %H:%M %Z')
+        except Exception as e:
+            print(f"Warning: Could not format date {item['date']}: {e}")
+            display_date = item['date_str'] # Fallback to original string
+
+        # Using basic list item structure, assuming styling comes from template.html
+        # Escape title and source just in case they contain HTML characters
+        escaped_title = requests.utils.escape(item['title'])
+        escaped_source = requests.utils.escape(item['source'])
+        list_items_html += f"""
+        <li>
+            <a href="{item['link']}" target="_blank" rel="noopener noreferrer">{escaped_title}</a>
+            <div style="font-size: 0.9em; color: #555;">
+                Source: {escaped_source} | Published: {display_date}
+            </div>
+        </li>
 """
 
-    html_content += """
-        </ul>
-        <p class="footer">Disclaimer: News aggregated via automated script. Accuracy and availability depend on source website structure.</p>
-    </div>
-</body>
-</html>
+    # Wrap the list items in a <ul> tag
+    # Add a timestamp comment for debugging/verification
+    timestamp = datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime('%Y-%m-%d %H:%M:%S %Z')
+    full_list_html = f"""
+<!-- News list generated at {timestamp} -->
+<ul class="news-list"> <!-- Add a class for potential styling -->
+{list_items_html}
+</ul>
+<!-- End of generated news list -->
 """
-    return html_content
+    return full_list_html
 
-def write_output(html_content):
-    """Writes the HTML content to the output file."""
+# --- Fallback write function (only used if template reading fails) ---
+def write_output_fallback(html_content):
+    """Writes basic HTML content to the output file (used for fallback errors)."""
     try:
         with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
             f.write(html_content)
-        print(f"Successfully wrote news to {OUTPUT_FILE}")
+        print(f"Successfully wrote basic fallback output to {OUTPUT_FILE}")
     except IOError as e:
-        print(f"Error writing to file {OUTPUT_FILE}: {e}")
+        print(f"Error writing basic fallback output to file {OUTPUT_FILE}: {e}")
+
+# --- Main function to handle template processing ---
+def write_final_html(news_list_html):
+    """Reads the template, injects the news list, and writes to the output file."""
+    try:
+        with open(TEMPLATE_FILE, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+    except IOError as e:
+        print(f"Error reading template file {TEMPLATE_FILE}: {e}")
+        # Fallback: generate a basic error page if template is missing
+        error_html = f"<html><head><title>Error</title></head><body><h1>Error</h1><p>Could not read template file: {TEMPLATE_FILE}</p><h2>Generated News Content:</h2>{news_list_html}</body></html>"
+        write_output_fallback(error_html) # Use the fallback write function
+        return False # Indicate failure
+
+    if NEWS_PLACEHOLDER not in template_content:
+        print(f"Error: Placeholder '{NEWS_PLACEHOLDER}' not found in {TEMPLATE_FILE}.")
+        # Fallback: Append news to the end if placeholder is missing, but log error
+        final_html = template_content + "\n<hr><h2>Appended News (Placeholder Missing):</h2>\n" + news_list_html
+    else:
+        final_html = template_content.replace(NEWS_PLACEHOLDER, news_list_html)
+
+    try:
+        with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+            f.write(final_html)
+        print(f"Successfully wrote final HTML to {OUTPUT_FILE}")
+        return True # Indicate success
+    except IOError as e:
+        print(f"Error writing final HTML to {OUTPUT_FILE}: {e}")
+        return False # Indicate failure
 
 # --- Execution ---
 if __name__ == "__main__":
-    print("Starting news scraping process...")
-    html = fetch_news()
-    if html:
-        news = parse_news(html)
-        output_html = generate_html(news)
-        write_output(output_html)
+    print(f"--- Starting news scraping process at {datetime.datetime.now()} ---")
+    html_content = fetch_news()
+    news_items = [] # Initialize empty list
+    if html_content:
+        news_items = parse_news(html_content)
     else:
-        # Generate an error page if fetching failed
-        output_html = generate_html([])
-        write_output(output_html)
-    print("Script finished.")
+        print("Fetching news failed. Proceeding with empty news list.")
+
+    # Generate only the news list HTML
+    news_list_html_content = generate_news_list_html(news_items)
+
+    # Inject the list into the template and write the final index.html
+    success = write_final_html(news_list_html_content)
+
+    if success:
+        print(f"--- Script finished successfully at {datetime.datetime.now()} ---")
+    else:
+        print(f"--- Script finished with errors at {datetime.datetime.now()} ---")
