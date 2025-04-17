@@ -1,12 +1,11 @@
-
 import feedparser
 from datetime import datetime
 import pytz
+from dateutil import parser as dateparser
 
 TEMPLATE_PATH = "template.html"
 OUTPUT_PATH = "index.html"
 
-# Розширені RSS-стрічки для збору більшої кількості новин
 RSS_FEEDS = {
     "Google Real Estate": "https://news.google.com/rss/search?q=real+estate&hl=en-US&gl=US&ceid=US:en",
     "Google Housing Market": "https://news.google.com/rss/search?q=housing+market&hl=en-US&gl=US&ceid=US:en",
@@ -31,14 +30,21 @@ def fetch_all_news():
             if key in seen:
                 continue
             seen.add(key)
-            published = entry.get("published", "")
+
+            published_str = entry.get("published", "")
+            try:
+                published_dt = dateparser.parse(published_str)
+            except Exception:
+                published_dt = datetime.min
+
             all_articles.append({
                 "title": title,
                 "link": link,
-                "published": published
+                "published": published_str,
+                "datetime_obj": published_dt
             })
 
-    all_articles.sort(key=lambda x: x["published"], reverse=True)
+    all_articles.sort(key=lambda x: x["datetime_obj"], reverse=True)
     return all_articles
 
 def generate_news_html(news_items):
