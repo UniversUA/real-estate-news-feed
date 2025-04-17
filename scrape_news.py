@@ -1,3 +1,4 @@
+
 import feedparser
 from datetime import datetime
 import pytz
@@ -5,9 +6,16 @@ import pytz
 TEMPLATE_PATH = "template.html"
 OUTPUT_PATH = "index.html"
 
+# Розширені RSS-стрічки для збору більшої кількості новин
 RSS_FEEDS = {
-    "Google News": "https://news.google.com/rss/search?q=real+estate+USA&hl=en-US&gl=US&ceid=US:en",
-    "Bing News": "https://www.bing.com/news/search?q=real+estate&format=rss&cc=US"
+    "Google Real Estate": "https://news.google.com/rss/search?q=real+estate&hl=en-US&gl=US&ceid=US:en",
+    "Google Housing Market": "https://news.google.com/rss/search?q=housing+market&hl=en-US&gl=US&ceid=US:en",
+    "Google Property News": "https://news.google.com/rss/search?q=property+news&hl=en-US&gl=US&ceid=US:en",
+    "Google Commercial Real Estate": "https://news.google.com/rss/search?q=commercial+real+estate&hl=en-US&gl=US&ceid=US:en",
+    "Bing Real Estate": "https://www.bing.com/news/search?q=real+estate&format=rss&cc=US",
+    "Bing Housing Market": "https://www.bing.com/news/search?q=housing+market&format=rss&cc=US",
+    "Bing Property News": "https://www.bing.com/news/search?q=property+news&format=rss&cc=US",
+    "Bing Mortgage News": "https://www.bing.com/news/search?q=mortgage+news&format=rss&cc=US"
 }
 
 def fetch_all_news():
