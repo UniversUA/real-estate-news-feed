@@ -95,18 +95,15 @@
 </footer>
 <script>
     function filterNews() {
-      const query = document.querySelector(".search").value.toLowerCase();
+      const query = document.querySelector(".search").value.trim().toLowerCase();
       const newsItems = document.querySelectorAll(".news-item");
       let count = 0;
     
       newsItems.forEach(item => {
         const title = item.querySelector("a").textContent.toLowerCase();
-        if (title.includes(query)) {
-          item.classList.remove("hidden");
-          count++;
-        } else {
-          item.classList.add("hidden");
-        }
+        const match = title.includes(query);
+        item.style.display = match ? "" : "none";
+        if (match) count++;
       });
     
       const counter = document.querySelector(".counter");
@@ -117,9 +114,7 @@
     
     const searchInput = document.querySelector(".search");
     if (searchInput) {
-      searchInput.addEventListener("keyup", filterNews);
-    
-      // Блокуємо Enter
+      searchInput.addEventListener("input", filterNews); // замість keyup — краща реакція
       searchInput.addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -127,8 +122,9 @@
         }
       });
     
-      filterNews(); // ініціалізація
+      // Запуск при старті
+      filterNews();
     }
-    </script>    
+</script>
 </body>
 </html>
