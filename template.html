@@ -12,6 +12,25 @@
 <link rel="stylesheet" href="https://rospopa.com/css/styles.css">
 <!-- Custom CSS -->
 <link rel="stylesheet" href="https://rospopa.com/css/format.css">
+<style>
+    h2 {
+        margin-top: 2px;
+    }
+    
+    .news-item {
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+    }
+
+    .news-item.hidden {
+    opacity: 0;
+    pointer-events: none;
+    height: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    }
+</style>
 </head>
 
 <body>
@@ -32,28 +51,12 @@
 <div class="page-content">
     <div class="wrap">
       <div class="home">
-        <div class="form-group pull-right">
+        <div class="form-group pull-right" style="margin-bottom:0px">
             <input class="search form-control" type="text" placeholder="What you looking for?" />
         </div>
         <span class="counter pull-right"></span>
-<style>
-    h2 {
-        margin-top: 2px;
-    }
-    .news-item {
-    opacity: 1;
-    transition: opacity 0.3s ease-in-out;
-    }
 
-    .news-item.hidden {
-    opacity: 0;
-    pointer-events: none;
-    height: 0;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
-    }
-</style>
+
 <!-- NEWS_CONTENT_PLACEHOLDER -->
 
 <br>
